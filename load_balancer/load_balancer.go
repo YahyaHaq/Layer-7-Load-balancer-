@@ -48,6 +48,7 @@ func (lb *LoadBalancer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	r.URL.Scheme = server.Scheme
 	r.URL.Host = server.Host
+	r.Host = server.Host
 
 	lb.Proxy.ServeHTTP(w, r)
 }
