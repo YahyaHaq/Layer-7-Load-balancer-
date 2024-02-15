@@ -1,6 +1,8 @@
 package loadbalancer
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -11,6 +13,7 @@ type LoadBalancer struct {
 	targets []*url.URL
 	counter int
 	Proxy   *httputil.ReverseProxy
+	broker  *Broker
 }
 
 func NewLoadBalancer(servers []string) *LoadBalancer {
@@ -29,13 +32,55 @@ func NewLoadBalancer(servers []string) *LoadBalancer {
 	return &LoadBalancer{
 		targets: targets,
 		Proxy:   &httputil.ReverseProxy{Director: director},
+		broker:  NewBroker("localhost:8024"),
 	}
 }
 
 func (lb *LoadBalancer) Start(port int) {
 	fmt.Printf("Load Balancer listening on :%d\n", port)
 
+	go lb.registerNewServers()
+
 	http.ListenAndServe(fmt.Sprintf(":%d", port), lb)
+}
+
+func (lb *LoadBalancer) registerNewServers() {
+	pubsub := lb.broker.redis.Subscribe(context.Background(), "serverList")
+
+	// Close the subscription when we are done.
+	defer pubsub.Close()
+
+	fmt.Println("waiting for servers to connect")
+	for {
+		msg, err := pubsub.ReceiveMessage(context.Background())
+		if err != nil {
+			panic(err)
+		}
+
+		serverInfo := &BrokerPayload{}
+
+		fmt.Println(msg.Channel, msg.Payload)
+
+		err = json.Unmarshal([]byte(msg.Payload), serverInfo)
+		if err != nil {
+			panic(err)
+		}
+
+		lb.addServer(serverInfo)
+
+	}
+}
+
+func (lb *LoadBalancer) addServer(serverInfo *BrokerPayload) {
+	u, err := url.Parse(serverInfo.ServerAddress)
+	if err != nil {
+		fmt.Printf("Unable to parse url %s due to error %s", serverInfo.ServerAddress, err)
+		return
+	}
+
+	lb.targets = append(lb.targets, u)
+
+	fmt.Printf("added server %s", serverInfo.ServerAddress)
 }
 
 func director(r *http.Request) {

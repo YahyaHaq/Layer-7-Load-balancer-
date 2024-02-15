@@ -26,13 +26,22 @@ Here are the following features:
    - integration with open telemetry and datadog (TODO)
 
 6. High Availability (TODO)
+
    - create a kill switch in the load balancer
    - on failure make sure that load balancer comes back alive quickly
+   - Figure out How
+
+7. Perform SSL Termination
+
+8. Perform Caching
 
 STEP BY STEP TODO:
 
-- run ci pipeline
-- write unit and integration tests
+- make sure to implement graceful shutdown
 - make sure we can dynamically add servers to our load balancers
 - add health checks and remove unhealthy servers
 - use worker pool(LATER)
+- reserach on rate limiting algo
+- implement rate limiting algo
+- integrate with data dog
+- integrate with open telemetry
